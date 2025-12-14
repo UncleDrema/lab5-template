@@ -1,0 +1,7 @@
+apiVersion: v2
+name: postgres
+description: PostgreSQL database for RSOI microservices
+
+type: application
+version: 0.1.0
+appVersion: "15"

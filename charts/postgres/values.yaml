@@ -1,0 +1,56 @@
+replicaCount: 1
+
+image:
+  repository: "library/postgres"
+  pullPolicy: IfNotPresent
+  tag: "15"
+
+imagePullSecrets: []
+
+nameOverride: "postgres"
+fullnameOverride: "postgres"
+
+serviceAccount:
+  create: false
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 5432
+  name: postgresql
+
+# PostgreSQL specific configuration
+postgresql:
+  username: "postgres"
+  password: "postgres"
+  database: "postgres"
+  initScriptsConfigMap: "postgres-init-scripts"
+
+# Persistent Volume
+persistence:
+  enabled: true
+  storageClass: "yc-network-hdd"
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /var/lib/postgresql/data
+  subPath: "postgres"
+
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 250m
+  #   memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

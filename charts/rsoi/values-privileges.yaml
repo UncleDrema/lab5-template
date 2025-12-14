@@ -1,0 +1,75 @@
+replicaCount: 1
+
+image:
+  repository: "cr.yandex/crpmeck79ctbb2r5j4j5/privileges"
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+
+nameOverride: "privileges"
+fullnameOverride: "privileges"
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: "privileges"
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8050
+  name: http
+
+env:
+  - name: SERVER_PORT
+    value: "8050"
+  - name: SPRING_APPLICATION_NAME
+    value: "privileges"
+  - name: SPRING_DATASOURCE_URL
+    value: "jdbc:postgresql://postgres:5432/privileges"
+  - name: SPRING_DATASOURCE_USERNAME
+    value: "program"
+  - name: SPRING_DATASOURCE_PASSWORD
+    value: "test"
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: privileges.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}
+
+livenessProbe:
+  httpGet:
+    path: /manage/health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /manage/health
+    port: http
+  initialDelaySeconds: 20
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

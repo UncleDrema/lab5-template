@@ -1,0 +1,75 @@
+replicaCount: 1
+
+image:
+  repository: "cr.yandex/crpmeck79ctbb2r5j4j5/gateway"
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+
+nameOverride: "gateway"
+fullnameOverride: "gateway"
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: "gateway"
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+  name: http
+
+env:
+  - name: SERVER_PORT
+    value: "8080"
+  - name: SPRING_APPLICATION_NAME
+    value: "gateway"
+  - name: DOWNSTREAM_FLIGHTS
+    value: "http://flights:8060"
+  - name: DOWNSTREAM_TICKETS
+    value: "http://tickets:8070"
+  - name: DOWNSTREAM_PRIVILEGES
+    value: "http://privileges:8050"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: 130.193.57.16.nip.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+resources: {}
+
+livenessProbe:
+  httpGet:
+    path: /manage/health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /manage/health
+    port: http
+  initialDelaySeconds: 20
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

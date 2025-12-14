@@ -1,38 +1,179 @@
 name: GitHub Classroom Workflow
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 jobs:
   build:
-    name: Autograding
+    name: Build and Push to Yandex Cloud Registry
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: docker/setup-buildx-action@v2
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'gradle'
 
-      # TODO build, publish to docker hub, deploy to k8s
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
 
+      - name: Configure Yandex Cloud
+        env:
+          YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
+          YC_FOLDER_ID: b1g793uupj43hjh55c3m
+          YC_REGISTRY: cr.yandex/crpmeck79ctbb2r5j4j5
+        run: |
+          yc config set token "$YC_OAUTH_TOKEN"
+          yc config set folder-id "$YC_FOLDER_ID"
+          yc container registry configure-docker
+
+      - name: Install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm version
+
+      - name: Configure kubectl for Yandex Cloud
+        env:
+          YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
+          YC_CLUSTER_ID: catq2lo9dmaukeknlhqq
+          YC_FOLDER_ID: b1g793uupj43hjh55c3m
+        run: |
+          yc container cluster get-credentials "$YC_CLUSTER_ID" --external --force --folder-id "$YC_FOLDER_ID"
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Build & publish image with bootBuildImage - Flights
+        working-directory: ./services/flights
+        env:
+          YC_REGISTRY: cr.yandex/crpmeck79ctbb2r5j4j5
+        run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/flights:${{ github.sha }}
+
+      - name: Push image to Yandex Cloud Registry - Flights
+        env:
+          YC_REGISTRY: cr.yandex/crpmeck79ctbb2r5j4j5
+        run: |
+          IMAGE_SHA=${{ env.YC_REGISTRY }}/flights:${{ github.sha }}
+          IMAGE_LATEST=${{ env.YC_REGISTRY }}/flights:latest
+          echo "Tagging $IMAGE_SHA as $IMAGE_LATEST"
+          docker tag $IMAGE_SHA $IMAGE_LATEST
+          echo "Pushing $IMAGE_SHA"
+          docker push $IMAGE_SHA
+          echo "Pushing $IMAGE_LATEST"
+          docker push $IMAGE_LATEST
+
+      - name: Build & publish image with bootBuildImage - Tickets
+        working-directory: ./services/tickets
+        env:
+          YC_REGISTRY: cr.yandex/crpmeck79ctbb2r5j4j5
+        run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/tickets:${{ github.sha }}
+
+      - name: Push image to Yandex Cloud Registry - Tickets
+        env:
+          YC_REGISTRY: cr.yandex/crpmeck79ctbb2r5j4j5
+        run: |
+          IMAGE_SHA=${{ env.YC_REGISTRY }}/tickets:${{ github.sha }}
+          IMAGE_LATEST=${{ env.YC_REGISTRY }}/tickets:latest
+          echo "Tagging $IMAGE_SHA as $IMAGE_LATEST"
+          docker tag $IMAGE_SHA $IMAGE_LATEST
+          echo "Pushing $IMAGE_SHA"
+          docker push $IMAGE_SHA
+          echo "Pushing $IMAGE_LATEST"
+          docker push $IMAGE_LATEST
+
+      - name: Build & publish image with bootBuildImage - Privileges
+        working-directory: ./services/privileges
+        env:
+          YC_REGISTRY: cr.yandex/crpmeck79ctbb2r5j4j5
+        run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/privileges:${{ github.sha }}
+
+      - name: Push image to Yandex Cloud Registry - Privileges
+        env:
+          YC_REGISTRY: cr.yandex/crpmeck79ctbb2r5j4j5
+        run: |
+          IMAGE_SHA=${{ env.YC_REGISTRY }}/privileges:${{ github.sha }}
+          IMAGE_LATEST=${{ env.YC_REGISTRY }}/privileges:latest
+          echo "Tagging $IMAGE_SHA as $IMAGE_LATEST"
+          docker tag $IMAGE_SHA $IMAGE_LATEST
+          echo "Pushing $IMAGE_SHA"
+          docker push $IMAGE_SHA
+          echo "Pushing $IMAGE_LATEST"
+          docker push $IMAGE_LATEST
+
+      - name: Build & publish image with bootBuildImage - Gateway
+        working-directory: ./services/gateway
+        env:
+          YC_REGISTRY: cr.yandex/crpmeck79ctbb2r5j4j5
+        run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/gateway:${{ github.sha }}
+
+      - name: Push image to Yandex Cloud Registry - Gateway
+        env:
+          YC_REGISTRY: cr.yandex/crpmeck79ctbb2r5j4j5
+        run: |
+          IMAGE_SHA=${{ env.YC_REGISTRY }}/gateway:${{ github.sha }}
+          IMAGE_LATEST=${{ env.YC_REGISTRY }}/gateway:latest
+          echo "Tagging $IMAGE_SHA as $IMAGE_LATEST"
+          docker tag $IMAGE_SHA $IMAGE_LATEST
+          echo "Pushing $IMAGE_SHA"
+          docker push $IMAGE_SHA
+          echo "Pushing $IMAGE_LATEST"
+          docker push $IMAGE_LATEST
+
+      - name: Update Flights deployment
+        run: |
+          helm upgrade flights ./charts/rsoi -f ./charts/rsoi/values-flights.yaml -n rsoi
+          kubectl rollout restart deployment flights -n rsoi
+          kubectl rollout status deployment flights -n rsoi --timeout=1m
+
+      - name: Update Tickets deployment
+        run: |
+          helm upgrade tickets ./charts/rsoi -f ./charts/rsoi/values-tickets.yaml -n rsoi
+          kubectl rollout restart deployment tickets -n rsoi
+          kubectl rollout status deployment tickets -n rsoi --timeout=1m
+
+      - name: Update Privileges deployment
+        run: |
+          helm upgrade privileges ./charts/rsoi -f ./charts/rsoi/values-privileges.yaml -n rsoi
+          kubectl rollout restart deployment privileges -n rsoi
+          kubectl rollout status deployment privileges -n rsoi --timeout=1m
+
+      - name: Update Gateway deployment
+        run: |
+          helm upgrade gateway ./charts/rsoi -f ./charts/rsoi/values-gateway.yaml -n rsoi
+          kubectl rollout restart deployment gateway -n rsoi
+          kubectl rollout status deployment gateway -n rsoi --timeout=1m
+      
       - name: Run API Tests
-        uses: matt-ball/newman-action@master
-        with:
-          collection: <variant>/postman/collection.json
-          environment: <variant>/postman/environment.json
-          delayRequest: 100
-          reporters: '[ "cli" ]'
+        timeout-minutes: 5
+        run: ./scripts/test-script.sh
+        env:
+          VARIANT: v1
+          DEPLOYMENT_NAME: privileges
+          NAMESPACE: rsoi
+#      - uses: docker/setup-buildx-action@v2
 
-      - uses: education/autograding@v1
-        id: autograder
-        continue-on-error: true
+      # TODO build and run unit tests
 
-      - name: Github auto grader mark
-        uses: Romanow/google-sheet-autograder-marker@v1.0
-        with:
-          google_token: ${{secrets.GOOGLE_API_KEY}}
-          sheet_id: "1xkgjUX6Qmk7rdJG-QPOToav-HWWtthJjnShIKnw3oIY"
-          homework_number: 5
-          user_column: 'D'
-          column_offset: 'F'
-          mark: "'+"
+#      - name: Build images
+#        timeout-minutes: 10
+#        run: docker compose build --push
+
+      # TODO deploy to k8s with liveness and readyness probes
+
+#      - name: Wait before services are ready
+#        run: kubectl wait -n test -l app.kubernetes.io/name=gateway pod --for=condition=Ready --timeout 3m
+      
+      # TODO setup parameters in classroom/autograding.json
+      
+#      - name: Autograding
+#        uses: education/autograding@v1
+#        continue-on-error: true
