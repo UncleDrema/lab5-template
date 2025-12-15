@@ -55,12 +55,12 @@ env:
   - name: AUTH_AUTH0_CLIENT_ID
     valueFrom:
       secretKeyRef:
-        name: {{ include "rsoi.fullname" . }}-auth
+        name: "{{ include \"rsoi.fullname\" . }}-auth"
         key: client-id
   - name: AUTH_AUTH0_CLIENT_SECRET
     valueFrom:
       secretKeyRef:
-        name: {{ include "rsoi.fullname" . }}-auth
+        name: "{{ include \"rsoi.fullname\" . }}-auth"
         key: client-secret
 
 ingress:
