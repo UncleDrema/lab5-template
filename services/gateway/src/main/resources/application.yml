@@ -1,6 +1,18 @@
 server:
   port: 8080
+auth:
+  auth0:
+    domain: uncledrema.us.auth0.com
+    client-id: d096zvCsANQ4acmwCAduxoY0AkvzGgcv
+    client-secret: 9M4yZO_GGbpe9_RIOEXeRyxVtNHzayZOwJ1XNN0rz35ziAPK8B5r2C6o_MSD_QFN
+    audience: https://rsoi.api.com
+
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://uncledrema.us.auth0.com/
   application:
     name: gateway
 downstream:

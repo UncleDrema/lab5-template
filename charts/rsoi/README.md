@@ -153,3 +153,51 @@ SPRING_DATASOURCE_PASSWORD=test
 - Логи микросервиса: `kubectl logs <pod-name> -n rsoi -f`
 - Все релизы: `helm list -n rsoi`
 - Удаление всего: `helm uninstall postgres gateway flights tickets privileges -n rsoi`
+
+
+
+## Установка и развертывание
+
+### Kubernetes + Helm
+
+#### Настройка секретов для Auth0
+
+Проект использует Auth0 для OAuth2 авторизации. Учетные данные хранятся в Kubernetes Secrets и НЕ должны коммиться в Git.
+
+1. **Создай файл с секретами:**
+   ```bash
+   cp charts/rsoi/secrets-gateway.yaml.example charts/rsoi/secrets-gateway.yaml
+   ```
+
+2. **Заполни свои Auth0 credentials в `charts/rsoi/secrets-gateway.yaml`:**
+   ```yaml
+   auth:
+     auth0:
+       clientId: "YOUR_AUTH0_CLIENT_ID"
+       clientSecret: "YOUR_AUTH0_CLIENT_SECRET"
+   ```
+
+3. **Установи Helm чарт с секретами:**
+   ```bash
+   helm install gateway ./charts/rsoi \
+     -f charts/rsoi/values-gateway.yaml \
+     -f charts/rsoi/secrets-gateway.yaml
+   ```
+
+   Или для разных сервисов:
+   ```bash
+   helm install gateway ./charts/rsoi \
+     -f charts/rsoi/values-gateway.yaml \
+     -f charts/rsoi/secrets-gateway.yaml
+   
+   helm install flights ./charts/rsoi \
+     -f charts/rsoi/values-flights.yaml
+   
+   helm install tickets ./charts/rsoi \
+     -f charts/rsoi/values-tickets.yaml
+   
+   helm install privileges ./charts/rsoi \
+     -f charts/rsoi/values-privileges.yaml
+   ```
+
+⚠️ **Важно:** Файл `secrets-gateway.yaml` находится в `.gitignore` и не должен коммиться в Git!

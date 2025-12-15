@@ -27,6 +27,12 @@ service:
   port: 8050
   name: http
 
+auth:
+  auth0:
+    domain: "uncledrema.us.auth0.com"
+    audience: "https://rsoi.api.com"
+    issuerUri: "https://uncledrema.us.auth0.com/"
+
 env:
   - name: SERVER_PORT
     value: "8050"
@@ -38,6 +44,12 @@ env:
     value: "program"
   - name: SPRING_DATASOURCE_PASSWORD
     value: "test"
+  - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+    value: "{{ .Values.auth.auth0.issuerUri }}"
+  - name: AUTH_AUTH0_DOMAIN
+    value: "{{ .Values.auth.auth0.domain }}"
+  - name: AUTH_AUTH0_AUDIENCE
+    value: "{{ .Values.auth.auth0.audience }}"
 
 ingress:
   enabled: false

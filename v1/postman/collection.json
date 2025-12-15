@@ -36,39 +36,13 @@
 						"method": "POST",
 						"header": [],
 						"body": {
-							"mode": "urlencoded",
-							"urlencoded": [
-								{
-									"key": "scope",
-									"value": "openid",
-									"type": "text"
-								},
-								{
-									"key": "grant_type",
-									"value": "password",
-									"type": "text"
-								},
-								{
-									"key": "username",
-									"value": "{{username}}",
-									"type": "text"
-								},
-								{
-									"key": "password",
-									"value": "{{password}}",
-									"type": "text"
-								},
-								{
-									"key": "clientId",
-									"value": "{{clientId}}",
-									"type": "text"
-								},
-								{
-									"key": "clientSecret",
-									"value": "{{clientSecret}}",
-									"type": "text"
+							"mode": "raw",
+							"raw": "{\r\n    \"grant_type\": \"password\",\r\n    \"client_id\": \"{{clientId}}\",\r\n    \"client_secret\": \"{{clientSecret}}\",\r\n    \"username\": \"{{username}}\",\r\n    \"password\": \"{{password}}\",\r\n    \"audience\": \"https://rsoi.api.com\",\r\n    \"scope\": \"openid profile email\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
 								}
-							]
+							}
 						},
 						"url": {
 							"raw": "{{identityProviderUrl}}/oauth/token",
@@ -84,7 +58,7 @@
 					"response": []
 				},
 				{
-					"name": "[unauthorize] Получить список рейов",
+					"name": "[unauthorize] Получить список рейсов",
 					"event": [
 						{
 							"listen": "test",
@@ -129,7 +103,7 @@
 					"response": []
 				},
 				{
-					"name": "[success] Получить список рейстов",
+					"name": "[success] Получить список рейсов",
 					"event": [
 						{
 							"listen": "test",

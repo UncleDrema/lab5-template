@@ -4,32 +4,32 @@
 	"values": [
 		{
 			"key": "serviceUrl",
-			"value": "",
+			"value": "http://130.193.57.16.nip.io",
 			"enabled": true
 		},
 		{
 			"key": "identityProviderUrl",
-			"value": "",
+			"value": "https://uncledrema.us.auth0.com",
 			"enabled": true
 		},
 		{
 			"key": "username",
-			"value": "",
+			"value": "test@example.com",
 			"enabled": true
 		},
 		{
 			"key": "password",
-			"value": "",
+			"value": "test1234!",
 			"enabled": true
 		},
 		{
 			"key": "clientId",
-			"value": "",
+			"value": "d096zvCsANQ4acmwCAduxoY0AkvzGgcv",
 			"enabled": true
 		},
 		{
 			"key": "clientSecret",
-			"value": "",
+			"value": "9M4yZO_GGbpe9_RIOEXeRyxVtNHzayZOwJ1XNN0rz35ziAPK8B5r2C6o_MSD_QFN",
 			"enabled": true
 		}
 	],

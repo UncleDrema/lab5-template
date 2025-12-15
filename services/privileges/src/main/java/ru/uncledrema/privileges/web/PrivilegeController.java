@@ -1,14 +1,21 @@
 package ru.uncledrema.privileges.web;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerProperties;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 import ru.uncledrema.privileges.dto.BalanceOperationDto;
 import ru.uncledrema.privileges.dto.PrivilegeHistoryItemDto;
 import ru.uncledrema.privileges.dto.PrivilegeInfoDto;
 import ru.uncledrema.privileges.services.PrivilegeService;
 import ru.uncledrema.privileges.types.Privilege;
 
+import java.net.URI;
+import java.util.Map;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -16,9 +23,12 @@ import java.util.UUID;
 @RequestMapping("/privilege")
 public class PrivilegeController {
     private final PrivilegeService privilegeService;
+    private final RestTemplate restTemplate;
+    private final OAuth2ResourceServerProperties oAuthProps;
 
     @GetMapping
-    public ResponseEntity<PrivilegeInfoDto> getPrivilege(@RequestHeader(value = "X-User-Name") String username) {
+    public ResponseEntity<PrivilegeInfoDto> getPrivilege() {
+        String username = getUsernameFromUserInfo();
         Privilege privilege = privilegeService.getPrivilegeByUsername(username);
 
         var dto = mapToDto(privilege);
@@ -28,9 +38,9 @@ public class PrivilegeController {
 
     @PostMapping("/withdraw")
     public ResponseEntity<PrivilegeInfoDto> withdraw(
-            @RequestHeader(value = "X-User-Name") String username,
             @RequestBody BalanceOperationDto balanceOperation
     ) {
+        String username = getUsernameFromUserInfo();
         if (balanceOperation.amount() <= 0) {
             return ResponseEntity.badRequest().build();
         }
@@ -44,9 +54,9 @@ public class PrivilegeController {
 
     @PostMapping("/deposit")
     public ResponseEntity<PrivilegeInfoDto> deposit(
-            @RequestHeader(value = "X-User-Name") String username,
             @RequestBody BalanceOperationDto balanceOperation
     ) {
+        String username = getUsernameFromUserInfo();
         if (balanceOperation.amount() <= 0) {
             return ResponseEntity.badRequest().build();
         }
@@ -60,9 +70,9 @@ public class PrivilegeController {
 
     @PostMapping("/cancel/{ticketUid}")
     public ResponseEntity<PrivilegeInfoDto> cancel(
-            @RequestHeader(value = "X-User-Name") String username,
             @PathVariable UUID ticketUid
     ) {
+        String username = getUsernameFromUserInfo();
         var privilege = privilegeService.cancel(username, ticketUid);
 
         var dto = mapToDto(privilege);
@@ -83,5 +93,12 @@ public class PrivilegeController {
                         )
                 ).toList()
         );
+    }
+
+    private String getUsernameFromUserInfo() {
+        String userInfoUrl = oAuthProps.getJwt().getIssuerUri() + "userinfo";
+        var userInfo = restTemplate.exchange(URI.create(userInfoUrl), HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), Map.class);
+
+        return (String) userInfo.getBody().get("name");
     }
 }

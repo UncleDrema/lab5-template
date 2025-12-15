@@ -27,6 +27,14 @@ service:
   port: 8080
   name: http
 
+auth:
+  auth0:
+    domain: "uncledrema.us.auth0.com"
+    audience: "https://rsoi.api.com"
+    issuerUri: "https://uncledrema.us.auth0.com/"
+    clientId: ""
+    clientSecret: ""
+
 env:
   - name: SERVER_PORT
     value: "8080"
@@ -38,6 +46,22 @@ env:
     value: "http://tickets:8070"
   - name: DOWNSTREAM_PRIVILEGES
     value: "http://privileges:8050"
+  - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+    value: "{{ .Values.auth.auth0.issuerUri }}"
+  - name: AUTH_AUTH0_DOMAIN
+    value: "{{ .Values.auth.auth0.domain }}"
+  - name: AUTH_AUTH0_AUDIENCE
+    value: "{{ .Values.auth.auth0.audience }}"
+  - name: AUTH_AUTH0_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: {{ include "rsoi.fullname" . }}-auth
+        key: client-id
+  - name: AUTH_AUTH0_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: {{ include "rsoi.fullname" . }}-auth
+        key: client-secret
 
 ingress:
   enabled: true

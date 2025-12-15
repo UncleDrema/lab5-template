@@ -1,9 +1,11 @@
 package ru.uncledrema.flights.web;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerProperties;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 import ru.uncledrema.flights.dto.CreateFlightDto;
 import ru.uncledrema.flights.dto.FlightDto;
 import ru.uncledrema.flights.dto.PageDto;

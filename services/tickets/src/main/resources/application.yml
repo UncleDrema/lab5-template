@@ -1,6 +1,11 @@
 server:
   port: 8070
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://uncledrema.us.auth0.com/
   application:
     name: tickets
   datasource:

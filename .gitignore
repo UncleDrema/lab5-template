@@ -3,6 +3,10 @@
 # Logs
 infra/
 logs
+
+# Helm secrets - никогда не коммитьте файлы с credentials!
+charts/**/secrets-*.yaml
+!charts/**/secrets-*.yaml.example
 *.log
 npm-debug.log*
 yarn-debug.log*

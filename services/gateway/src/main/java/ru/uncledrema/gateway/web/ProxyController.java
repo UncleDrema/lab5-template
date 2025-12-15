@@ -7,10 +7,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerProperties;
 import org.springframework.http.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import ru.uncledrema.gateway.auth.*;
 import ru.uncledrema.gateway.config.DegradationProperties;
 import ru.uncledrema.gateway.config.RouteRule;
 import ru.uncledrema.gateway.config.RouteServiceRule;
@@ -25,7 +30,9 @@ import ru.uncledrema.gateway.dto.UserInfoDto;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 
@@ -39,6 +46,8 @@ public class ProxyController {
     private final TicketClient ticketClient;
     private final DegradationProperties degradationProperties;
     private final CircuitBreakerService circuitBreakerService;
+    private final Auth0Properties auth0;
+    private final OAuth2ResourceServerProperties oAuthProps;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${downstream.flights:http://localhost:8060}")
@@ -54,18 +63,73 @@ public class ProxyController {
     private final BlockingQueue<RequestTask> retryQueue = new LinkedBlockingQueue<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
+
     // инициализация фоновой обработки очереди
     {
         // запускаем фонового воркера, который раз в секунду пытается обработать одну задачу из очереди
         scheduler.scheduleWithFixedDelay(this::processQueueOnce, 0, 1, TimeUnit.SECONDS);
     }
 
+    @PostMapping("/authorize")
+    public ResponseEntity<?> authorize(@RequestBody LoginRequest login) {
+        String tokenUrl = "https://" + auth0.getDomain() + "/oauth/token";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("grant_type", "password");
+        body.put("client_id", auth0.getClientId());
+        body.put("client_secret", auth0.getClientSecret());
+        body.put("username", login.username());
+        body.put("password", login.password());
+        body.put("audience", auth0.getAudience());
+        body.put("scope", "openid profile email");
+
+        HttpEntity<Map<String,Object>> req = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<TokenResponse> resp = restTemplate.exchange(
+                    URI.create(tokenUrl),
+                    HttpMethod.POST,
+                    req,
+                    TokenResponse.class
+            );
+            TokenResponse tokens = resp.getBody();
+            if (tokens == null) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(new ErrorDto("Empty token response from identity provider"));
+            }
+
+            return ResponseEntity.ok(new LoginResult(tokens.accessToken, tokens.tokenType));
+
+        } catch (HttpStatusCodeException ex) {
+            // пробросим тело ошибки от auth0 клиенту
+            String bodyStr = ex.getResponseBodyAsString();
+            log.warn("Auth0 token error: status={}, body={}", ex.getStatusCode(), bodyStr);
+            return ResponseEntity.status(ex.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(bodyStr);
+        } catch (Exception e) {
+            log.error("Failed to request token: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorDto("Internal error contacting identity provider"));
+        }
+    }
+
+    @GetMapping("/test-token")
+    public ResponseEntity<?> testToken() {
+        return ResponseEntity.ok(getUsernameFromUserInfo());
+    }
+
     // ---- Aggregation example: GET /me ----
     @GetMapping("/me")
-    public ResponseEntity<?> me(@RequestHeader(value = "X-User-Name") String username) {
+    public ResponseEntity<?> me() {
+        // идентификатор пользователя в токене:
+        var username = getUsernameFromUserInfo();
+
         String routeKey = "/api/v1/me";
 
-        // Пример использования общего helper'а: возвращает либо значение, либо отметку о критичном недоступности, либо фолбек
         ServiceResult<PrivilegeShortInfoDto> privRes = getWithDegradation(
                 routeKey,
                 "privileges",
@@ -332,5 +396,12 @@ public class ProxyController {
             out.put(k, v);
         });
         return out;
+    }
+
+    private String getUsernameFromUserInfo() {
+        String userInfoUrl = oAuthProps.getJwt().getIssuerUri() + "userinfo";
+        var userInfo = restTemplate.exchange(URI.create(userInfoUrl), HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), Map.class);
+
+        return (String) userInfo.getBody().get("name");
     }
 }

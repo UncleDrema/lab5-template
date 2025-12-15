@@ -27,6 +27,12 @@ service:
   port: 8070
   name: http
 
+auth:
+  auth0:
+    domain: "uncledrema.us.auth0.com"
+    audience: "https://rsoi.api.com"
+    issuerUri: "https://uncledrema.us.auth0.com/"
+
 env:
   - name: SERVER_PORT
     value: "8070"
@@ -40,6 +46,12 @@ env:
     value: "test"
   - name: UPSTREAM_GATEWAY
     value: "http://gateway:8080/api/v1"
+  - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+    value: "{{ .Values.auth.auth0.issuerUri }}"
+  - name: AUTH_AUTH0_DOMAIN
+    value: "{{ .Values.auth.auth0.domain }}"
+  - name: AUTH_AUTH0_AUDIENCE
+    value: "{{ .Values.auth.auth0.audience }}"
 
 ingress:
   enabled: false
