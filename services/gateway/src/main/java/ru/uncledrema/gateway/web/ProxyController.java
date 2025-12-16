@@ -33,6 +33,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 
@@ -49,6 +50,8 @@ public class ProxyController {
     private final Auth0Properties auth0;
     private final OAuth2ResourceServerProperties oAuthProps;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    // Простой локальный кэш userinfo: ключ — значение заголовка Authorization, значение — имя пользователя
+    private final Map<String, String> userInfoCache = new ConcurrentHashMap<>();
 
     @Value("${downstream.flights:http://localhost:8060}")
     private String flightsBase;
@@ -400,8 +403,29 @@ public class ProxyController {
 
     private String getUsernameFromUserInfo() {
         String userInfoUrl = oAuthProps.getJwt().getIssuerUri() + "userinfo";
-        var userInfo = restTemplate.exchange(URI.create(userInfoUrl), HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), Map.class);
+        // Ключ кэша — текущий Authorization из входящего запроса
+        String authHeader = null;
+        try {
+            var attrs = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            if (attrs instanceof org.springframework.web.context.request.ServletRequestAttributes sra) {
+                authHeader = sra.getRequest().getHeader("Authorization");
+            }
+        } catch (Exception ignored) {
+        }
 
-        return (String) userInfo.getBody().get("name");
+        if (authHeader != null) {
+            String cached = userInfoCache.get(authHeader);
+            if (cached != null) {
+                return cached;
+            }
+        }
+
+        var userInfo = restTemplate.exchange(URI.create(userInfoUrl), HttpMethod.GET, HttpEntity.EMPTY, Map.class);
+        String name = (String) userInfo.getBody().get("name");
+
+        if (authHeader != null && name != null) {
+            userInfoCache.put(authHeader, name);
+        }
+        return name;
     }
 }

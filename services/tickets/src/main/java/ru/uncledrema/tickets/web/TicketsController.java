@@ -18,6 +18,7 @@ import ru.uncledrema.tickets.services.TicketService;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -28,6 +29,8 @@ public class TicketsController {
     private final Mapper mapper;
     private final RestTemplate restTemplate;
     private final OAuth2ResourceServerProperties oAuthProps;
+    // Локальный кэш userinfo: Authorization -> name
+    private final Map<String, String> userInfoCache = new ConcurrentHashMap<>();
 
     @GetMapping
     public ResponseEntity<List<TicketDto>> getAllForUser() {
@@ -59,8 +62,23 @@ public class TicketsController {
 
     private String getUsernameFromUserInfo() {
         String userInfoUrl = oAuthProps.getJwt().getIssuerUri() + "userinfo";
-        var userInfo = restTemplate.exchange(URI.create(userInfoUrl), HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), Map.class);
+        String authHeader = null;
+        try {
+            var attrs = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            if (attrs instanceof org.springframework.web.context.request.ServletRequestAttributes sra) {
+                authHeader = sra.getRequest().getHeader("Authorization");
+            }
+        } catch (Exception ignored) {
+        }
 
-        return (String) userInfo.getBody().get("name");
+        if (authHeader != null) {
+            String cached = userInfoCache.get(authHeader);
+            if (cached != null) return cached;
+        }
+
+        var userInfo = restTemplate.exchange(URI.create(userInfoUrl), HttpMethod.GET, HttpEntity.EMPTY, Map.class);
+        String name = (String) userInfo.getBody().get("name");
+        if (authHeader != null && name != null) userInfoCache.put(authHeader, name);
+        return name;
     }
 }
